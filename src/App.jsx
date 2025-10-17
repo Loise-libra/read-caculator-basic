@@ -1,3 +1,5 @@
+// src/App.jsx
+
 import { useState } from 'react';
 import './App.css';
 import Display from './components/Display';
@@ -7,10 +9,19 @@ function App() {
   const [currentValue, setCurrentValue] = useState("0");
   const [previousValue, setPreviousValue] = useState(null);
   const [operator, setOperator] = useState(null);
+  const [displayValue, setDisplayValue] = useState("0");
 
+  // ===============================================================
+  // ===== INICIO DEL CÓDIGO ACTUALIZADO ===========================
+  // ===============================================================
   const handleButtonClick = (value) => {
     // Lógica para números
     if (!isNaN(value)) {
+      if (displayValue === "0") {
+        setDisplayValue(value);
+      } else {
+        setDisplayValue(displayValue + value);
+      }
       setCurrentValue(currentValue === "0" ? value : currentValue + value);
       return;
     }
@@ -19,21 +30,21 @@ function App() {
     if (value === ".") {
       if (!currentValue.includes(".")) {
         setCurrentValue(currentValue + ".");
+        setDisplayValue(displayValue + ".");
       }
       return;
     }
 
-    // Lógica para operadores principales
     if (["+", "-", "×", "÷"].includes(value)) {
       if (previousValue) {
-        // Si ya hay una operación pendiente, la resolvemos primero
         const result = calculate();
         setPreviousValue(result);
-        setCurrentValue("0");
+        setDisplayValue(result + value);
       } else {
         setPreviousValue(currentValue);
-        setCurrentValue("0");
+        setDisplayValue(displayValue + value);
       }
+      setCurrentValue("0");
       setOperator(value);
       return;
     }
@@ -41,7 +52,9 @@ function App() {
     // Lógica para el signo igual
     if (value === "=") {
       if (operator && previousValue) {
-        setCurrentValue(calculate());
+        const result = calculate();
+        setDisplayValue(result);
+        setCurrentValue(result);
         setPreviousValue(null);
         setOperator(null);
       }
@@ -54,18 +67,50 @@ function App() {
         setCurrentValue("0");
         setPreviousValue(null);
         setOperator(null);
+        setDisplayValue("0");
         break;
-      case "+/-": // Cambiar signo
-        setCurrentValue((parseFloat(currentValue) * -1).toString());
+
+      // --- ¡NUEVA LÓGICA PARA +/-! ---
+      case "+/-":
+        if (currentValue === "0") return; // No hacer nada si es 0
+
+        const negatedValue = (parseFloat(currentValue) * -1).toString();
+        setCurrentValue(negatedValue);
+
+        if (operator && previousValue) {
+          // Si estamos modificando el segundo número (ej: 12+15)
+          // Quitamos el valor anterior (15) y ponemos el nuevo (-15)
+          const displayPrefix = displayValue.substring(0, displayValue.length - currentValue.length);
+          setDisplayValue(displayPrefix + negatedValue);
+        } else {
+          // Si estamos modificando el primer número
+          setDisplayValue(negatedValue);
+        }
         break;
-      case "%": // Porcentaje
-        setCurrentValue((parseFloat(currentValue) / 100).toString());
-        break;
-      case "√": // Raíz cuadrada
-        setCurrentValue(Math.sqrt(parseFloat(currentValue)).toString());
+
+      // --- ¡NUEVA LÓGICA PARA %! ---
+      case "%":
+        if (currentValue === "0") return; // No hacer nada si es 0
+
+        // Se calcula el porcentaje del valor actual (ej: 50 -> 0.5)
+        const percentageValue = (parseFloat(currentValue) / 100).toString();
+        setCurrentValue(percentageValue);
+
+        if (operator && previousValue) {
+          // Si estamos modificando el segundo número (ej: 12+50 -> 12+0.5)
+          const displayPrefix = displayValue.substring(0, displayValue.length - currentValue.length);
+          setDisplayValue(displayPrefix + percentageValue);
+        } else {
+          // Si estamos modificando el primer número
+          setDisplayValue(percentageValue);
+        }
         break;
     }
   };
+  // ===============================================================
+  // ===== FIN DEL CÓDIGO ACTUALIZADO ==============================
+  // ===============================================================
+
 
   const calculate = () => {
     const prev = parseFloat(previousValue);
@@ -84,7 +129,7 @@ function App() {
         result = prev * current;
         break;
       case "÷":
-        if (current === 0) return "Error"; // Manejo de división por cero
+        if (current === 0) return "Error";
         result = prev / current;
         break;
       default:
@@ -95,9 +140,9 @@ function App() {
 
   return (
     <div className="calculator">
-      <Display value={currentValue} />
+      <Display value={displayValue} />
       <div className="buttons-grid">
-        <Button onClick={handleButtonClick} className="special">{currentValue !== "0" ? "C" : "AC"}</Button>
+        <Button onClick={handleButtonClick} className="special">AC</Button>
         <Button onClick={handleButtonClick} className="special">+/-</Button>
         <Button onClick={handleButtonClick} className="special">%</Button>
         <Button onClick={handleButtonClick} className="operator">÷</Button>
@@ -120,9 +165,6 @@ function App() {
         <Button onClick={handleButtonClick} className="wide">0</Button>
         <Button onClick={handleButtonClick}>.</Button>
         <Button onClick={handleButtonClick} className="operator">=</Button>
-        
-        {/* Puedes añadir más botones para funciones avanzadas aquí */}
-        {/* <Button onClick={handleButtonClick} className="special">√</Button> */}
       </div>
     </div>
   );
